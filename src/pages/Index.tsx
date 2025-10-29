@@ -49,25 +49,67 @@ const Index = () => {
     toast.success('Черновик сохранён');
   };
 
-  const generateDocument = () => {
-    const conclusion: ConclusionData = {
-      ...formData,
-      id: Date.now().toString(),
-      status: 'completed',
-      createdAt: new Date()
-    };
-    setHistory(prev => [...prev, conclusion]);
-    toast.success('Заключение создано и готово к скачиванию');
-    
-    setFormData({
-      jointNumber: '',
-      inspectorName: '',
-      date: new Date().toISOString().split('T')[0],
-      controlType: '',
-      results: '',
-      notes: '',
-      status: 'draft'
-    });
+  const generateDocument = async () => {
+    if (!formData.jointNumber || !formData.inspectorName || !formData.controlType) {
+      toast.error('Заполните обязательные поля');
+      return;
+    }
+
+    try {
+      toast.loading('Генерация документа...');
+      
+      const response = await fetch('https://functions.poehali.dev/c09a1e4e-fe3f-4889-90e4-5029a094e993', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const byteCharacters = atob(data.document);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = data.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        const conclusion: ConclusionData = {
+          ...formData,
+          id: Date.now().toString(),
+          status: 'completed',
+          createdAt: new Date()
+        };
+        setHistory(prev => [...prev, conclusion]);
+        
+        toast.success('Документ успешно создан и скачан!');
+        
+        setFormData({
+          jointNumber: '',
+          inspectorName: '',
+          date: new Date().toISOString().split('T')[0],
+          controlType: '',
+          results: '',
+          notes: '',
+          status: 'draft'
+        });
+      }
+    } catch (error) {
+      toast.error('Ошибка при генерации документа');
+      console.error(error);
+    }
   };
 
   const loadDraft = (draft: ConclusionData) => {
@@ -82,6 +124,53 @@ const Index = () => {
     });
     setActiveSection('create');
     toast.info('Черновик загружен');
+  };
+
+  const downloadDocument = async (item: ConclusionData) => {
+    try {
+      toast.loading('Генерация документа...');
+      
+      const response = await fetch('https://functions.poehali.dev/c09a1e4e-fe3f-4889-90e4-5029a094e993', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jointNumber: item.jointNumber,
+          inspectorName: item.inspectorName,
+          date: item.date,
+          controlType: item.controlType,
+          results: item.results,
+          notes: item.notes
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const byteCharacters = atob(data.document);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+        
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = data.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        toast.success('Документ скачан!');
+      }
+    } catch (error) {
+      toast.error('Ошибка при скачивании документа');
+      console.error(error);
+    }
   };
 
   const stats = {
@@ -306,7 +395,7 @@ const Index = () => {
                               {new Date(item.createdAt).toLocaleDateString('ru-RU')} • {item.controlType}
                             </p>
                           </div>
-                          <Button size="sm" className="bg-primary">
+                          <Button size="sm" className="bg-primary" onClick={() => downloadDocument(item)}>
                             <Icon name="Download" size={16} className="mr-2" />
                             Скачать
                           </Button>

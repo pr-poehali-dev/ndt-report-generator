@@ -1,0 +1,29 @@
+{
+  "tests": [
+    {
+      "name": "Generate document with full data",
+      "method": "POST",
+      "body": {
+        "jointNumber": "123-A",
+        "inspectorName": "Иванов Иван Иванович",
+        "date": "2025-10-29",
+        "controlType": "ut",
+        "results": "Дефектов не обнаружено",
+        "notes": "Контроль выполнен в соответствии с требованиями"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true,
+        "filename": "string",
+        "document": "string"
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Handle OPTIONS for CORS",
+      "method": "OPTIONS",
+      "expectedStatus": 200,
+      "bodyMatcher": "partial"
+    }
+  ]
+}
